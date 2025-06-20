@@ -1,0 +1,92 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Fullscreen Top Background Cover -->
+    <ImageView
+        android:id="@+id/topCover"
+        android:layout_width="match_parent"
+        android:layout_height="350dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/homebg"/>
+
+    <!-- Foreground Rectangle with Rounded Top Corners -->
+    <RelativeLayout
+        android:id="@+id/bottomHalf"
+        android:layout_width="match_parent"
+        android:layout_height="600dp"
+        android:layout_alignParentBottom="true">
+
+
+        <ImageView
+            android:id="@+id/roundedBackgroundImage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/rounded_top_background"
+            android:clipToOutline="true"
+            android:scaleType="centerCrop"
+            android:src="@drawable/dansalaicon" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/rounded_top_background"/> <!-- ~80% black -->
+
+        <!-- Dansal Button -->
+        <LinearLayout
+            android:id="@+id/btnDansal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/rounded_button"
+            android:layout_margin="40dp"
+            android:padding="12dp"
+            android:layout_marginTop="82dp"
+            android:onClick="openDansalMap">
+
+            <ImageView
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/dansalbuttonicon"
+                android:layout_marginEnd="12dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="දන්සල         Dansal"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:textSize="20sp" />
+        </LinearLayout>
+
+        <!-- Thoran Button -->
+        <LinearLayout
+            android:id="@+id/btnThoran"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/rounded_button"
+            android:layout_margin="40dp"
+            android:padding="12dp"
+            android:layout_below="@id/btnDansal"
+            android:onClick="openThoranMap">
+
+            <ImageView
+                android:layout_width="42dp"
+                android:layout_height="42dp"
+                android:src="@drawable/thoranaicon"
+                android:layout_marginEnd="12dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="තොරණ්      Thoran"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:textSize="20sp" />
+        </LinearLayout>
+    </RelativeLayout>
+
+</RelativeLayout>

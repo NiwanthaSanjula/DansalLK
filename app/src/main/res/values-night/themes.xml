@@ -1,0 +1,13 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Base Dark Theme with No Action Bar -->
+    <style name="Base.Theme.DansalLK" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your dark theme here -->
+        <item name="colorPrimary">#FFA500</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="android:statusBarColor" tools:targetApi="l">#000000</item>
+    </style>
+
+    <!-- Actual theme applied to app -->
+    <style name="Theme.DansalLK" parent="Base.Theme.DansalLK" />
+</resources>
