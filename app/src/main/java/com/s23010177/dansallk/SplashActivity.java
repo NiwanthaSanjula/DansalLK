@@ -22,7 +22,7 @@ public class SplashActivity extends AppCompatActivity {
         new Handler().postDelayed(() -> {
             startActivity(new Intent(SplashActivity.this, LoginActivity.class));
             finish();
-        }, 2000); // 2-second delay
+        }, 3000); // 3-second delay
 
 
         //Add lantern waving animation

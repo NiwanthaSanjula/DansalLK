@@ -1,125 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#FFF">
+    android:layout_height="match_parent">
 
     <LinearLayout
-        android:orientation="vertical"
-        android:padding="16dp"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <TextView
-            android:text="දන්සල එකතු කිරීම"
-            android:textSize="22sp"
-            android:textStyle="bold"
+        <!-- 1. Category Spinner -->
+        <Spinner
+            android:id="@+id/spCategory"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center"
-            android:paddingBottom="16dp" />
+            android:background="@drawable/edittext_bg"
+            android:prompt="@string/select_category" />
 
+        <!-- 1b. Other category input, initially hidden -->
         <EditText
-            android:id="@+id/etName"
+            android:id="@+id/etOtherCategory"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="දන්සල නම" />
+            android:hint="වර්ගය ලියන්න"
+            android:visibility="gone"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/edittext_bg"
+            android:padding="12dp"
+            android:textColor="#000"/>
 
-        <EditText
-            android:id="@+id/etLocation"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="ස්ථානය"
-            android:layout_marginTop="10dp" />
-
-        <EditText
-            android:id="@+id/etDate"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="දිනය (YYYY-MM-DD)"
-            android:layout_marginTop="10dp" />
-
-        <EditText
-            android:id="@+id/etStartTime"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="ආරම්භ වේලාව (HH:mm)"
-            android:layout_marginTop="10dp" />
-
-        <EditText
-            android:id="@+id/etEndTime"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="අවසන් වේලාව (HH:mm)"
-            android:layout_marginTop="10dp" />
-
+        <!-- 2. Optional description -->
         <EditText
             android:id="@+id/etDescription"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="විස්තරය"
-            android:minLines="3"
-            android:gravity="top"
-            android:layout_marginTop="10dp" />
+            android:hint="විස්තර (Optional)"
+            android:inputType="textMultiLine"
+            android:minLines="2"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/edittext_bg"
+            android:padding="12dp"
+            android:textColor="#000"/>
 
-
+        <!-- 3. Address input with pick location -->
         <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:padding="5dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center">
-
-            <!-- GPS Location Button -->
-            <Button
-                android:id="@+id/btnUseGPS"
-                android:layout_width="0dp"
-                android:layout_height="58dp"
-                android:layout_weight="1"
-                android:text="GPS නගන්න"
-                android:layout_margin="8dp" />
-
-            <!-- Upload Image Button -->
-            <Button
-                android:id="@+id/btnChooseImage"
-                android:layout_width="0dp"
-                android:layout_height="58dp"
-                android:layout_weight="1"
-                android:text="ඡායාරූප තෝරන්න"
-                android:layout_margin="8dp" />
-        </LinearLayout>
-
-
-
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="තෝරාගත් ඡායාරූප"
-            android:textStyle="bold"
-            android:layout_marginTop="10dp" />
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
             android:layout_marginTop="8dp">
 
-            <LinearLayout
-                android:id="@+id/imagePreviewContainer"
-                android:layout_width="wrap_content"
+            <EditText
+                android:id="@+id/etAddress"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:padding="4dp" />
-        </HorizontalScrollView>
+                android:layout_weight="1"
+                android:hint="ස්ථානය"
+                android:focusable="false"
+                android:clickable="false"
+                android:textColor="#000"
+                android:background="@drawable/edittext_bg"
+                android:padding="12dp"/>
 
+            <Button
+                android:id="@+id/btnPickLocation"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/back_button_bg"
+                android:text="ස්ථානය තෝරන්න"
+                android:textColor="#000"
+                android:drawableLeft="@drawable/ic_my_location"
+                android:drawablePadding="8dp"
+                android:gravity="center_vertical"
+                android:padding="8dp"/>
+        </LinearLayout>
 
-        <!-- Submit Button -->
-        <Button
-            android:id="@+id/btnSubmit"
+        <!-- 4. Date picker -->
+        <TextView
+            android:id="@+id/tvDate"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="දන්සල එකතු කරන්න"
-            android:layout_marginTop="20dp"
+            android:hint="දිනය"
+            android:padding="12dp"
+            android:background="@drawable/edittext_bg"
+            android:layout_marginTop="8dp"
+            android:textColor="#000"/>
+
+        <!-- 5. Start time picker -->
+        <TextView
+            android:id="@+id/tvStartTime"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="ආරම්භක වේලාව"
+            android:padding="12dp"
+            android:background="@drawable/edittext_bg"
+            android:layout_marginTop="8dp"
+            android:textColor="#000"/>
+
+        <!-- 6. Media selection -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Media (Images/Videos)"
+            android:layout_marginTop="16dp"
+            android:textStyle="bold"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <Button
+                android:id="@+id/btnAddGallery"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Gallery"/>
+
+            <Button
+                android:id="@+id/btnAddCamera"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Camera"
+                android:layout_marginStart="8dp"/>
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvMediaPreview"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:layout_marginTop="8dp"
+            android:scrollbars="horizontal"
+            android:orientation="horizontal"/>
+
+        <!-- 7. Save button -->
+        <Button
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="සුරකින්න"
+            android:layout_marginTop="16dp"
             android:backgroundTint="#FFA500"
-            android:textColor="#000" />
+            android:textColor="#FFF"/>
     </LinearLayout>
 </ScrollView>

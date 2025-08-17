@@ -45,7 +45,9 @@ public class SignupActivity extends AppCompatActivity {
                 return;
             }
 
-            boolean success = dbHelper.insertUser(username, password);
+            long result = dbHelper.addUser(username, password);
+            boolean success = result != -1;
+
             if (success) {
                 Toast.makeText(this, "Account created", Toast.LENGTH_SHORT).show();
                 startActivity(new Intent(SignupActivity.this, LoginActivity.class));
@@ -53,6 +55,7 @@ public class SignupActivity extends AppCompatActivity {
             } else {
                 Toast.makeText(this, "User already exists or error occurred", Toast.LENGTH_SHORT).show();
             }
+
         });
 
         // Handle back arrow click

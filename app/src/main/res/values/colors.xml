@@ -2,4 +2,13 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Primary Colors -->
+    <color name="primary_blue">#2196F3</color>
+    <color name="secondary_orange">#FF9800</color>
+    <color name="accent_green">#4CAF50</color>
+
+    <!-- Additional Colors -->
+    <color name="label_background_color">#80000000</color>
+
 </resources>

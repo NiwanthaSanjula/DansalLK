@@ -48,7 +48,8 @@ public class DansalaDetailsActivity extends AppCompatActivity {
     }
 
     private void loadDansalaDetails(String dansalaId) {
-        DBHelper.Dansala dansala = dbHelper.getDansalaById(Integer.parseInt(dansalaId));
+        DBHelper.Event dansala = dbHelper.getEventById(Integer.parseInt(dansalaId));
+
         if (dansala == null) {
             Toast.makeText(this, "No details found for this Dansala", Toast.LENGTH_SHORT).show();
             finish();

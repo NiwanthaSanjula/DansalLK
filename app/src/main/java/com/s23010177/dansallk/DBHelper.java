@@ -5,16 +5,16 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-
 import org.json.JSONArray;
 import org.json.JSONException;
-
 import java.util.ArrayList;
 import java.util.List;
 
 public class DBHelper extends SQLiteOpenHelper {
-    private static final String DB_NAME = "DansalaDB";
-    private static final int DB_VERSION = 1;
+    private static final String DB_NAME = "DansalDB";
+    private static final int DB_VERSION = 3; // increment version
+    private static final String TABLE_EVENTS = "events";
+    private static final String TABLE_USERS = "users";
 
     public DBHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -22,160 +22,165 @@ public class DBHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        db.execSQL("CREATE TABLE users(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, password TEXT)");
-
-        db.execSQL("CREATE TABLE IF NOT EXISTS dansala_events (" +
+        db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_EVENTS + " (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "name TEXT, location TEXT, date TEXT, start_time TEXT, end_time TEXT, " +
-                "description TEXT, latitude REAL, longitude REAL, images TEXT)");
+                "name TEXT NOT NULL, " +
+                "description TEXT, " +
+                "lat REAL NOT NULL, " +
+                "lng REAL NOT NULL, " +
+                "eventType TEXT NOT NULL, " +
+                "category TEXT, " +
+                "images TEXT, " +
+                "eventDate TEXT, " +
+                "startTime TEXT, " +
+                "created_at INTEGER)");
+
+        db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_USERS + " (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "username TEXT NOT NULL UNIQUE, " +
+                "password TEXT NOT NULL)");
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE IF EXISTS users");
-        db.execSQL("DROP TABLE IF EXISTS dansala_events");
-        onCreate(db);
-    }
-
-    public boolean insertUser(String username, String password) {
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM users WHERE username=?", new String[]{username});
-        if (cursor.getCount() > 0) {
-            cursor.close();
-            return false; // Username already exists
+        if (oldVersion < 3) {
+            try { db.execSQL("ALTER TABLE " + TABLE_EVENTS + " ADD COLUMN eventDate TEXT"); } catch (Exception ignored) {}
+            try { db.execSQL("ALTER TABLE " + TABLE_EVENTS + " ADD COLUMN startTime TEXT"); } catch (Exception ignored) {}
         }
-        cursor.close();
-
-        db = this.getWritableDatabase();
-        ContentValues values = new ContentValues();
-        values.put("username", username);
-        values.put("password", password);
-        long result = db.insert("users", null, values);
-        return result != -1;
     }
 
-    public boolean validateUser(String username, String password) {
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM users WHERE username=? AND password=?", new String[]{username, password});
-        boolean result = cursor.getCount() > 0;
-        cursor.close();
-        return result;
-    }
-
-    // Insert Dansala with images
-    public boolean insertDansala(String name, String location, String date, String startTime, String endTime,
-                                 String description, double latitude, double longitude, List<String> images) {
-        SQLiteDatabase db = this.getWritableDatabase();
-        ContentValues values = new ContentValues();
-        values.put("name", name);
-        values.put("location", location);
-        values.put("date", date);
-        values.put("start_time", startTime);
-        values.put("end_time", endTime);
-        values.put("description", description);
-        values.put("latitude", latitude);
-        values.put("longitude", longitude);
-
-        // Convert images list to JSON string
+    // ---------------- Events methods ----------------
+    public long addEvent(String name, String description, double lat, double lng,
+                         String eventType, String category, List<String> images,
+                         String eventDate, String startTime) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("name", name);
+        cv.put("description", description);
+        cv.put("lat", lat);
+        cv.put("lng", lng);
+        cv.put("eventType", eventType);
+        cv.put("category", category);
         if (images != null && !images.isEmpty()) {
-            JSONArray jsonArray = new JSONArray();
-            for (String img : images) {
-                jsonArray.put(img);
-            }
-            values.put("images", jsonArray.toString());
+            JSONArray ja = new JSONArray();
+            for (String s : images) ja.put(s);
+            cv.put("images", ja.toString());
         } else {
-            values.put("images", "[]"); // empty JSON array if no images
+            cv.putNull("images");
         }
-
-        long result = db.insert("dansala_events", null, values);
-        return result != -1;
+        cv.put("eventDate", eventDate);
+        cv.put("startTime", startTime);
+        cv.put("created_at", System.currentTimeMillis());
+        return db.insert(TABLE_EVENTS, null, cv);
     }
 
-    // Dansala data model
-    public static class Dansala {
+    public List<Event> getEventsByType(String eventType) {
+        SQLiteDatabase db = getReadableDatabase();
+        List<Event> list = new ArrayList<>();
+        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_EVENTS + " WHERE eventType = ? ORDER BY created_at DESC",
+                new String[]{eventType});
+        while (c.moveToNext()) list.add(fromCursor(c));
+        c.close();
+        return list;
+    }
+
+    public List<Event> getDansalByCategory(String category) {
+        SQLiteDatabase db = getReadableDatabase();
+        List<Event> list = new ArrayList<>();
+        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_EVENTS + " WHERE eventType = ? AND (? IS NULL OR category = ?) ORDER BY created_at DESC",
+                new String[]{"dansal", category, category});
+        while (c.moveToNext()) list.add(fromCursor(c));
+        c.close();
+        return list;
+    }
+
+    public List<Event> getDansalOtherCategories(List<String> predefinedCats) {
+        SQLiteDatabase db = getReadableDatabase();
+        List<Event> list = new ArrayList<>();
+
+        StringBuilder placeholders = new StringBuilder();
+        for (int i = 0; i < predefinedCats.size(); i++) {
+            placeholders.append("?");
+            if (i < predefinedCats.size() - 1) placeholders.append(",");
+        }
+
+        String sql = "SELECT * FROM " + TABLE_EVENTS +
+                " WHERE eventType = ? AND (category NOT IN (" + placeholders + ") OR category IS NULL) " +
+                "ORDER BY created_at DESC";
+
+        String[] args = new String[predefinedCats.size() + 1];
+        args[0] = "dansal";
+        for (int i = 0; i < predefinedCats.size(); i++) args[i + 1] = predefinedCats.get(i);
+
+        Cursor c = db.rawQuery(sql, args);
+        while (c.moveToNext()) list.add(fromCursor(c));
+        c.close();
+        return list;
+    }
+
+    private Event fromCursor(Cursor c) {
+        Event e = new Event();
+        e.id = c.getInt(c.getColumnIndexOrThrow("id"));
+        e.name = c.getString(c.getColumnIndexOrThrow("name"));
+        e.description = c.getString(c.getColumnIndexOrThrow("description"));
+        e.lat = c.getDouble(c.getColumnIndexOrThrow("lat"));
+        e.lng = c.getDouble(c.getColumnIndexOrThrow("lng"));
+        e.eventType = c.getString(c.getColumnIndexOrThrow("eventType"));
+        e.category = c.getString(c.getColumnIndexOrThrow("category"));
+        e.eventDate = c.getString(c.getColumnIndexOrThrow("eventDate"));
+        e.startTime = c.getString(c.getColumnIndexOrThrow("startTime"));
+
+        String imagesJson = c.getString(c.getColumnIndexOrThrow("images"));
+        e.images = new ArrayList<>();
+        if (imagesJson != null && !imagesJson.isEmpty()) {
+            try {
+                JSONArray arr = new JSONArray(imagesJson);
+                for (int i = 0; i < arr.length(); i++) e.images.add(arr.getString(i));
+            } catch (JSONException ignored) {}
+        }
+        e.createdAt = c.getLong(c.getColumnIndexOrThrow("created_at"));
+        return e;
+    }
+
+    public Event getEventById(int id) {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_EVENTS + " WHERE id = ?", new String[]{String.valueOf(id)});
+        Event event = null;
+        if (c.moveToFirst()) event = fromCursor(c);
+        c.close();
+        return event;
+    }
+
+    // ---------------- Users methods ----------------
+    public boolean validateUser(String username, String password) {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_USERS + " WHERE username = ? AND password = ?", new String[]{username, password});
+        boolean exists = c.getCount() > 0;
+        c.close();
+        return exists;
+    }
+
+    public long addUser(String username, String password) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("username", username);
+        cv.put("password", password);
+        return db.insert(TABLE_USERS, null, cv);
+    }
+
+    // ---------------- Event model ----------------
+    public static class Event {
         public int id;
         public String name;
+        public String description;
+        public double lat, lng;
         public String location;
-        public String date;
         public String startTime;
         public String endTime;
-        public String description;
-        public double latitude;
-        public double longitude;
-        public List<String> images = new ArrayList<>();
-    }
-
-    // Get all Dansalas
-    public List<Dansala> getAllDansalas() {
-        List<Dansala> dansalaList = new ArrayList<>();
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM dansala_events", null);
-
-        if (cursor.moveToFirst()) {
-            do {
-                Dansala d = new Dansala();
-                d.id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
-                d.name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
-                d.location = cursor.getString(cursor.getColumnIndexOrThrow("location"));
-                d.date = cursor.getString(cursor.getColumnIndexOrThrow("date"));
-                d.startTime = cursor.getString(cursor.getColumnIndexOrThrow("start_time"));
-                d.endTime = cursor.getString(cursor.getColumnIndexOrThrow("end_time"));
-                d.description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
-                d.latitude = cursor.getDouble(cursor.getColumnIndexOrThrow("latitude"));
-                d.longitude = cursor.getDouble(cursor.getColumnIndexOrThrow("longitude"));
-
-                // Parse images JSON string
-                String imagesJson = cursor.getString(cursor.getColumnIndexOrThrow("images"));
-                if (imagesJson != null && !imagesJson.isEmpty()) {
-                    try {
-                        JSONArray jsonArray = new JSONArray(imagesJson);
-                        for (int i = 0; i < jsonArray.length(); i++) {
-                            d.images.add(jsonArray.getString(i));
-                        }
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    }
-                }
-
-                dansalaList.add(d);
-            } while (cursor.moveToNext());
-        }
-        cursor.close();
-        return dansalaList;
-    }
-
-    // Get Dansala by ID
-    public Dansala getDansalaById(int id) {
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM dansala_events WHERE id = ?", new String[]{String.valueOf(id)});
-        Dansala d = null;
-
-        if (cursor.moveToFirst()) {
-            d = new Dansala();
-            d.id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
-            d.name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
-            d.location = cursor.getString(cursor.getColumnIndexOrThrow("location"));
-            d.date = cursor.getString(cursor.getColumnIndexOrThrow("date"));
-            d.startTime = cursor.getString(cursor.getColumnIndexOrThrow("start_time"));
-            d.endTime = cursor.getString(cursor.getColumnIndexOrThrow("end_time"));
-            d.description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
-            d.latitude = cursor.getDouble(cursor.getColumnIndexOrThrow("latitude"));
-            d.longitude = cursor.getDouble(cursor.getColumnIndexOrThrow("longitude"));
-
-            // Parse images JSON string
-            String imagesJson = cursor.getString(cursor.getColumnIndexOrThrow("images"));
-            if (imagesJson != null && !imagesJson.isEmpty()) {
-                try {
-                    JSONArray jsonArray = new JSONArray(imagesJson);
-                    for (int i = 0; i < jsonArray.length(); i++) {
-                        d.images.add(jsonArray.getString(i));
-                    }
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-        cursor.close();
-        return d;
+        public String eventType;
+        public String category;
+        public String eventDate;
+        public List<String> images;
+        public long createdAt;
     }
 }

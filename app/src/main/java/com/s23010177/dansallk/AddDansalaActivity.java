@@ -1,182 +1,219 @@
 package com.s23010177.dansallk;
 
-import android.Manifest;
 import android.app.Activity;
+import android.app.DatePickerDialog;
+import android.app.TimePickerDialog;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.view.View;
 import android.widget.*;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-import java.io.IOException;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
 import java.util.List;
 
 public class AddDansalaActivity extends AppCompatActivity {
 
-    private EditText etName, etLocation, etDate, etStartTime, etEndTime, etDescription;
-    private LinearLayout imagePreviewContainer;
-    private static final int IMAGE_PICK_CODE = 101;
-    private static final int LOCATION_PERMISSION_CODE = 102;
+    private static final int REQ_PICK_LOCATION = 2001;
+    private static final int REQ_PICK_GALLERY = 2002;
+    private static final int REQ_PICK_CAMERA = 2003;
 
-    private ArrayList<Uri> imageUris = new ArrayList<>();
-    private double currentLatitude = 0.0;
-    private double currentLongitude = 0.0;
+    private EditText etDescription, etAddress, etOtherCategory;
+    private Spinner spCategory;
+    private Button btnPickLocation, btnSave, btnAddGallery, btnAddCamera;
+    private RecyclerView rvMediaPreview;
+    private TextView tvDate, tvStartTime;
 
-    private DBHelper dbHelper;
+    private double selectedLat, selectedLng;
+    private List<String> mediaPaths = new ArrayList<>();
+    private MediaAdapter mediaAdapter;
+
+    private String selectedDate = "", selectedTime = "";
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_dansala);
 
-        // Initialize views
-        etName = findViewById(R.id.etName);
-        etLocation = findViewById(R.id.etLocation);
-        etDate = findViewById(R.id.etDate);
-        etStartTime = findViewById(R.id.etStartTime);
-        etEndTime = findViewById(R.id.etEndTime);
+        // Bind views
         etDescription = findViewById(R.id.etDescription);
-        imagePreviewContainer = findViewById(R.id.imagePreviewContainer);
+        etAddress = findViewById(R.id.etAddress);
+        etOtherCategory = findViewById(R.id.etOtherCategory);
+        spCategory = findViewById(R.id.spCategory);
+        btnPickLocation = findViewById(R.id.btnPickLocation);
+        btnSave = findViewById(R.id.btnSave);
+        btnAddGallery = findViewById(R.id.btnAddGallery);
+        btnAddCamera = findViewById(R.id.btnAddCamera);
+        rvMediaPreview = findViewById(R.id.rvMediaPreview);
+        tvDate = findViewById(R.id.tvDate);
+        tvStartTime = findViewById(R.id.tvStartTime);
 
-        Button btnUseGPS = findViewById(R.id.btnUseGPS);
-        Button btnChooseImage = findViewById(R.id.btnChooseImage);
-        Button btnSubmit = findViewById(R.id.btnSubmit);
+        etOtherCategory.setVisibility(View.GONE);
 
-        // Initialize DB helper
-        dbHelper = new DBHelper(this);
+        // Spinner setup
+        String[] cats = new String[]{
+                "බ්‍රෙඩ්/පාන්", "බත්", "නූඩ්ල්ස්", "අයිස්ක්‍රීම්",
+                "බීම", "ෆ්‍රයිඩ් රයිස්", "රොටි", "කඩල", "සව්", "සුප්", "අනෙක්"
+        };
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, Arrays.asList(cats));
+        spCategory.setAdapter(adapter);
 
-        // Set listeners
-        //btnUseGPS.setOnClickListener(v -> getGPSLocation());
-
-        btnUseGPS.setOnClickListener(v -> {
-            Intent intent = new Intent(AddDansalaActivity.this, PickLocationActivity.class);
-            startActivityForResult(intent, 1234);
-        });
-        btnChooseImage.setOnClickListener(v -> chooseImages());
-        btnSubmit.setOnClickListener(v -> submitDansala());
-    }
-
-    // Request image picker
-    private void chooseImages() {
-        Intent intent = new Intent(Intent.ACTION_PICK);
-        intent.setType("image/*");
-        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-        startActivityForResult(Intent.createChooser(intent, "Select Images"), IMAGE_PICK_CODE);
-    }
-
-    // Get GPS coordinates
-    private void getGPSLocation() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                    LOCATION_PERMISSION_CODE);
-        } else {
-            GPSTracker gps = new GPSTracker(this);
-            if (gps.canGetLocation()) {
-                currentLatitude = gps.getLatitude();
-                currentLongitude = gps.getLongitude();
-                etLocation.setText("Lat: " + currentLatitude + ", Lon: " + currentLongitude);
-            } else {
-                gps.showSettingsAlert();
+        spCategory.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String selected = (String) parent.getItemAtPosition(position);
+                etOtherCategory.setVisibility("අනෙක්".equals(selected) ? View.VISIBLE : View.GONE);
             }
-        }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
+        // Media RecyclerView
+        mediaAdapter = new MediaAdapter(this, mediaPaths);
+        rvMediaPreview.setLayoutManager(new GridLayoutManager(this, 3));
+        rvMediaPreview.setAdapter(mediaAdapter);
+
+        // Button listeners
+        btnPickLocation.setOnClickListener(v -> openPickLocation());
+        btnAddGallery.setOnClickListener(v -> openGallery());
+        btnAddCamera.setOnClickListener(v -> openCamera());
+        btnSave.setOnClickListener(v -> saveDansala());
+
+        // Date picker
+        tvDate.setOnClickListener(v -> {
+            final Calendar c = Calendar.getInstance();
+            int year = c.get(Calendar.YEAR);
+            int month = c.get(Calendar.MONTH);
+            int day = c.get(Calendar.DAY_OF_MONTH);
+
+            DatePickerDialog dpd = new DatePickerDialog(this, (view, y, m, d) -> {
+                m += 1; // month starts from 0
+                selectedDate = String.format("%04d-%02d-%02d", y, m, d);
+                tvDate.setText(selectedDate);
+            }, year, month, day);
+            dpd.show();
+        });
+
+        // Time picker
+        tvStartTime.setOnClickListener(v -> {
+            final Calendar c = Calendar.getInstance();
+            int hour = c.get(Calendar.HOUR_OF_DAY);
+            int minute = c.get(Calendar.MINUTE);
+
+            TimePickerDialog tpd = new TimePickerDialog(this, (view, h, m) -> {
+                selectedTime = String.format("%02d:%02d", h, m);
+                tvStartTime.setText(selectedTime);
+            }, hour, minute, true);
+            tpd.show();
+        });
     }
 
-    // Save Dansala details to SQLite
-    private void submitDansala() {
-        String name = etName.getText().toString().trim();
-        String location = etLocation.getText().toString().trim();
-        String date = etDate.getText().toString().trim();
-        String start = etStartTime.getText().toString().trim();
-        String end = etEndTime.getText().toString().trim();
-        String description = etDescription.getText().toString().trim();
+    private void openPickLocation() {
+        Intent i = new Intent(this, PickLocationActivity.class);
+        startActivityForResult(i, REQ_PICK_LOCATION);
+    }
 
-        if (name.isEmpty() || location.isEmpty()) {
-            Toast.makeText(this, "නම සහ ස්ථානය අවශ්‍යයි", Toast.LENGTH_SHORT).show();
-            return;
-        }
+    private void openGallery() {
+        Intent i = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        startActivityForResult(i, REQ_PICK_GALLERY);
+    }
 
-        List<String> imagePaths = new ArrayList<>();
-        for (Uri uri : imageUris) {
-            imagePaths.add(uri.toString());
-        }
-
-        boolean success = dbHelper.insertDansala(name, location, date, start, end, description, currentLatitude, currentLongitude, imagePaths);
-        if (success) {
-            Toast.makeText(this, "දන්සල සුරකිණි!", Toast.LENGTH_SHORT).show();
-            finish();
-        } else {
-            Toast.makeText(this, "දත්ත සුරැකීම අසාර්ථකයි", Toast.LENGTH_SHORT).show();
-        }
+    private void openCamera() {
+        Intent i = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        startActivityForResult(i, REQ_PICK_CAMERA);
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
-        // Handle image picking
-        if (requestCode == IMAGE_PICK_CODE && resultCode == Activity.RESULT_OK && data != null) {
-            imageUris.clear();
-            imagePreviewContainer.removeAllViews();
-
-            if (data.getClipData() != null) {
-                int count = data.getClipData().getItemCount();
-                for (int i = 0; i < count; i++) {
-                    Uri imageUri = data.getClipData().getItemAt(i).getUri();
-                    imageUris.add(imageUri);
-                    addImageToPreview(imageUri);
-                }
-            } else if (data.getData() != null) {
-                Uri imageUri = data.getData();
-                imageUris.add(imageUri);
-                addImageToPreview(imageUri);
-            }
-        }
-
-        // Handle location selection from PickLocationActivity
-        if (requestCode == 1234 && resultCode == RESULT_OK && data != null) {
-            currentLatitude = data.getDoubleExtra("latitude", 0.0);
-            currentLongitude = data.getDoubleExtra("longitude", 0.0);
+        if (requestCode == REQ_PICK_LOCATION && resultCode == Activity.RESULT_OK && data != null) {
+            selectedLat = data.getDoubleExtra("latitude", 0);
+            selectedLng = data.getDoubleExtra("longitude", 0);
             String address = data.getStringExtra("address");
-            etLocation.setText(address != null ? address : "Lat: " + currentLatitude + ", Lon: " + currentLongitude);
-        }
-    }
+            etAddress.setText(address);
 
+        } else if ((requestCode == REQ_PICK_GALLERY || requestCode == REQ_PICK_CAMERA)
+                && resultCode == Activity.RESULT_OK && data != null) {
 
-    // Show selected image thumbnails
-    private void addImageToPreview(Uri imageUri) {
-        try {
-            ImageView imageView = new ImageView(this);
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(200, 200);
-            params.setMargins(8, 8, 8, 8);
-            imageView.setLayoutParams(params);
-            imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), imageUri);
-            imageView.setImageBitmap(bitmap);
-            imagePreviewContainer.addView(imageView);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    // Handle permission result for GPS
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        if (requestCode == LOCATION_PERMISSION_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                getGPSLocation();
-            } else {
-                Toast.makeText(this, "GPS අවසරය අවශ්‍යයි", Toast.LENGTH_SHORT).show();
+            List<Uri> selectedUris = new ArrayList<>();
+            if (requestCode == REQ_PICK_GALLERY) {
+                if (data.getClipData() != null) {
+                    int count = data.getClipData().getItemCount();
+                    for (int i = 0; i < count; i++) {
+                        selectedUris.add(data.getClipData().getItemAt(i).getUri());
+                    }
+                } else if (data.getData() != null) selectedUris.add(data.getData());
+            } else if (requestCode == REQ_PICK_CAMERA) {
+                if (data.getData() != null) selectedUris.add(data.getData());
             }
+
+            for (Uri uri : selectedUris) {
+                String internalPath = saveImageToInternalStorage(uri);
+                if (internalPath != null) mediaPaths.add(internalPath);
+            }
+            mediaAdapter.notifyDataSetChanged();
+        }
+    }
+
+    private String saveImageToInternalStorage(Uri uri) {
+        try {
+            String fileName = "img_" + System.currentTimeMillis() + ".jpg";
+            File file = new File(getFilesDir(), fileName);
+            try (InputStream is = getContentResolver().openInputStream(uri);
+                 FileOutputStream fos = new FileOutputStream(file)) {
+                byte[] buf = new byte[1024];
+                int len;
+                while ((len = is.read(buf)) > 0) {
+                    fos.write(buf, 0, len);
+                }
+            }
+            return file.getAbsolutePath();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Image save failed", Toast.LENGTH_SHORT).show();
+            return null;
+        }
+    }
+
+    private void saveDansala() {
+        String category = (String) spCategory.getSelectedItem();
+        if ("අනෙක්".equals(category)) category = etOtherCategory.getText().toString().trim();
+
+        String description = etDescription.getText().toString().trim();
+        String address = etAddress.getText().toString().trim();
+
+        if (category.isEmpty() || address.isEmpty() || selectedLat == 0 || selectedLng == 0) {
+            Toast.makeText(this, "Category සහ Address අවශ්‍යයි", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (selectedDate.isEmpty() || selectedTime.isEmpty()) {
+            Toast.makeText(this, "දිනය සහ ආරම්භක වේලාව අවශ්‍යයි", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        DBHelper db = new DBHelper(this);
+        long id = db.addEvent(category, description, selectedLat, selectedLng, "dansal",
+                category, mediaPaths, selectedDate, selectedTime);
+
+        if (id > 0) {
+            Toast.makeText(this, "Dansal එකතු කරන ලදි", Toast.LENGTH_SHORT).show();
+            setResult(RESULT_OK);
+            finish();
         } else {
-            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+            Toast.makeText(this, "සුරැකුම් දෝශයක් ඇතිවිය", Toast.LENGTH_SHORT).show();
         }
     }
 }
